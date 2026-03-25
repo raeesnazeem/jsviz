@@ -89,11 +89,12 @@ function setVariable(name, value, frameId, allFrames) {
   return false;
 }
 
-function makeStep(id, type, currentLine, nextLine, callStack, webApis, callbackQueue, consoleOutput, arrows, description) {
+function makeStep(id, type, currentLine, nextLine, callStack, webApis, callbackQueue, microtaskQueue, consoleOutput, arrows, description) {
   const cloned = deepClone({
     callStack,
     webApis,
     callbackQueue,
+    microtaskQueue,
     consoleOutput
   });
 
@@ -109,6 +110,7 @@ function makeStep(id, type, currentLine, nextLine, callStack, webApis, callbackQ
     callStack: cloned.callStack,
     webApis: cloned.webApis,
     callbackQueue: cloned.callbackQueue,
+    microtaskQueue: cloned.microtaskQueue,
     consoleOutput: cloned.consoleOutput,
     arrows,
     description
@@ -130,7 +132,22 @@ export function interpretAST(ast) {
   const allFrames = [];
   const webApis = [];
   const callbackQueue = [];
+  const microtaskQueue = [];
   const consoleOutput = [];
+  const pendingTimers = [];
+
+  let callStackInCount = 0;
+  let callStackOutCount = 0;
+  let macrotaskInCount = 0;
+  let macrotaskOutCount = 0;
+  let microtaskInCount = 0;
+  let microtaskOutCount = 0;
+
+  function getOrdinal(n) {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
 
   function pushStep(type, line, nextLine, arrows, desc) {
     steps.push(makeStep(
@@ -141,6 +158,7 @@ export function interpretAST(ast) {
       callStack, 
       webApis, 
       callbackQueue, 
+      microtaskQueue,
       consoleOutput, 
       arrows, 
       desc
@@ -150,6 +168,8 @@ export function interpretAST(ast) {
   // Step 1 - Global context creation
   const globalFrame = createFrame('global', 'Global', 'global', null);
   globalFrame.isActive = true;
+  callStackInCount++;
+  globalFrame.inLabel = `${getOrdinal(callStackInCount)} in`;
   callStack.push(globalFrame);
   allFrames.push(globalFrame);
   pushStep(StepType.GLOBAL_CTX_CREATE, null, null, [], 'Creating global execution context');
@@ -221,7 +241,46 @@ export function interpretAST(ast) {
           const args = expr.arguments.map(arg => evalExpr(arg, currentFrame));
           const logOutput = args.join(' ');
           consoleOutput.push(logOutput);
-          pushStep(StepType.CONSOLE_LOG, expr.loc?.start?.line, null, [], `Logging to console: ${logOutput}`);
+          pushStep(StepType.CONSOLE_LOG, expr.loc?.start?.line, null, [
+            { id: `arrow_${stepId}`, from: { panel: 'callStack' }, to: { panel: 'console' }, color: 'var(--arrow-log)' }
+          ], `Logging to console: ${logOutput}`);
+          return undefined;
+        }
+
+        // Handle setTimeout
+        if (calleeNode.type === 'Identifier' && calleeNode.name === 'setTimeout') {
+          const args = expr.arguments.map(arg => evalExpr(arg, currentFrame));
+          const callback = args[0];
+          
+          const timerId = `timer_${stepId}`;
+          webApis.push({ id: timerId, name: callback?.name || 'anonymous', source: 'setTimeout', callback });
+          pendingTimers.push({ id: timerId, callback });
+          
+          pushStep(StepType.TIMEOUT_REGISTER, expr.loc?.start?.line, null, [
+            { id: `arrow_${stepId}`, from: { panel: 'callStack' }, to: { panel: 'webApis' }, color: 'var(--arrow-async)' }
+          ], `Registering setTimeout in Web API`);
+          
+          return timerId;
+        }
+
+        // Handle Promise.resolve().then
+        if (calleeNode.type === 'MemberExpression' &&
+            calleeNode.property.name === 'then' &&
+            calleeNode.object.type === 'CallExpression' &&
+            calleeNode.object.callee.type === 'MemberExpression' &&
+            calleeNode.object.callee.object.name === 'Promise' &&
+            calleeNode.object.callee.property.name === 'resolve') {
+          const args = expr.arguments.map(arg => evalExpr(arg, currentFrame));
+          const callback = args[0];
+          
+          microtaskInCount++;
+          const inLabel = `${getOrdinal(microtaskInCount)} in`;
+          microtaskQueue.push({ id: `micro_${stepId}`, name: callback?.name || 'anonymous', source: 'Promise', callback, inLabel });
+          
+          pushStep(StepType.TIMEOUT_REGISTER, expr.loc?.start?.line, null, [
+            { id: `arrow_${stepId}`, from: { panel: 'callStack' }, to: { panel: 'microtaskQueue' }, color: 'var(--arrow-async)', label: `Queueing (${inLabel})` }
+          ], `Queueing Promise microtask`);
+          
           return undefined;
         }
 
@@ -239,9 +298,13 @@ export function interpretAST(ast) {
           });
           
           currentFrame.isActive = false;
+          callStackInCount++;
+          fnFrame.inLabel = `${getOrdinal(callStackInCount)} in`;
           callStack.push(fnFrame);
           
-          pushStep(StepType.FN_CALL, expr.loc?.start?.line, null, [], `Calling ${callee.name}`);
+          pushStep(StepType.FN_CALL, expr.loc?.start?.line, null, [
+            { id: `arrow_${stepId}`, from: { panel: 'editor' }, to: { panel: 'callStack' }, color: 'var(--arrow-call)', label: `Call (${fnFrame.inLabel})` }
+          ], `Calling ${callee.name}`);
           
           if (callee.body.type === 'BlockStatement') {
             for (const stmt of callee.body.body) {
@@ -254,11 +317,16 @@ export function interpretAST(ast) {
           
           const retVal = fnFrame.returnValue;
           
+          callStackOutCount++;
+          const outLabel = `${getOrdinal(callStackOutCount)} out`;
           callStack.pop();
           const newCurrent = callStack[callStack.length - 1];
           if (newCurrent) newCurrent.isActive = true;
           
-          pushStep(StepType.FN_RETURN, expr.loc?.start?.line, null, [], `Returning from ${callee.name}`);
+          pushStep(StepType.FN_RETURN, expr.loc?.start?.line, null, [
+            { id: `arrow_${stepId}`, from: { panel: 'callStack' }, to: { panel: 'editor' }, color: 'var(--arrow-return)', label: `Returned (${outLabel})` },
+            { id: `arrow2_${stepId}`, style: 'dashed', from: { panel: 'callStack' }, to: { panel: 'callStack' }, color: 'var(--arrow-return)' }
+          ], `Returning from ${callee.name}`);
           
           return retVal;
         }
@@ -318,6 +386,81 @@ export function interpretAST(ast) {
       executeNode(node);
     }
   }
+
+  // Step 4 - Event Loop processing
+  
+  // 4a. Move Web API timers to callback queue
+  while (pendingTimers.length > 0) {
+    const timer = pendingTimers.shift();
+    const idx = webApis.findIndex(w => w.id === timer.id);
+    if (idx !== -1) webApis.splice(idx, 1);
+    
+    macrotaskInCount++;
+    const inLabel = `${getOrdinal(macrotaskInCount)} in`;
+    callbackQueue.push({ id: timer.id, name: timer.callback?.name || 'anonymous', source: 'setTimeout', callback: timer.callback, inLabel });
+    
+    pushStep(StepType.TIMEOUT_FIRE, null, null, [
+      { id: `arrow_mv_${stepId}`, from: { panel: 'webApis' }, to: { panel: 'callbackQueue' }, color: 'var(--arrow-queue)', label: `Queueing (${inLabel})` }
+    ], `Timer finished, moving to Callback Queue`);
+  }
+
+  // 4b. Event Loop execution
+  function executeEventLoopTask(task, queueName) {
+    if (!task.callback) return;
+    
+    let queueOutLabel = '';
+    if (queueName === 'microtaskQueue') {
+      microtaskOutCount++;
+      queueOutLabel = `${getOrdinal(microtaskOutCount)} out`;
+    } else {
+      macrotaskOutCount++;
+      queueOutLabel = `${getOrdinal(macrotaskOutCount)} out`;
+    }
+    
+    pushStep(StepType.CB_DEQUEUE, null, null, [
+      { id: `arrow_dq_${stepId}`, from: { panel: queueName }, to: { panel: 'callStack' }, color: 'var(--arrow-return)', label: `Dequeue (${queueOutLabel})` },
+      { id: `arrow_loop_${stepId}`, from: { panel: queueName }, to: { panel: 'eventLoop' }, color: 'var(--arrow-return)' }
+    ], `Event loop picks up ${task.name} from ${queueName === 'microtaskQueue' ? 'Microtask Queue' : 'Callback Queue'}`);
+    
+    const frameId = 'cb_frame_' + stepId;
+    const fnFrame = createFrame(frameId, task.name, 'function', task.callback.outerRef);
+    fnFrame.isActive = true;
+    allFrames.push(fnFrame);
+    
+    callStackInCount++;
+    fnFrame.inLabel = `${getOrdinal(callStackInCount)} in`;
+    callStack.push(fnFrame);
+    pushStep(StepType.FN_CALL, null, null, [
+      { id: `arrow_ev_${stepId}`, from: { panel: 'eventLoop' }, to: { panel: 'callStack' }, color: 'var(--arrow-return)', label: `Call (${fnFrame.inLabel})` }
+    ], `Executing callback ${task.name}`);
+    
+    if (task.callback.body && task.callback.body.type === 'BlockStatement') {
+      for (const stmt of task.callback.body.body) {
+        executeNode(stmt);
+        if (fnFrame.hasReturned) break;
+      }
+    } else if (task.callback.body) {
+      fnFrame.returnValue = evalExpr(task.callback.body, fnFrame);
+    }
+    
+    callStackOutCount++;
+    const outLabel = `${getOrdinal(callStackOutCount)} out`;
+    callStack.pop();
+    pushStep(StepType.FN_RETURN, null, null, [
+       { id: `arrow_rt_${stepId}`, from: { panel: 'callStack' }, to: { panel: 'editor' }, color: 'var(--arrow-return)', label: `Returned (${outLabel})` }
+    ], `Finished callback ${task.name}`);
+  }
+
+  // Exhaust microtasks, then macrotasks
+  while (microtaskQueue.length > 0 || callbackQueue.length > 0) {
+    if (microtaskQueue.length > 0) {
+      executeEventLoopTask(microtaskQueue.shift(), 'microtaskQueue');
+    } else if (callbackQueue.length > 0) {
+      executeEventLoopTask(callbackQueue.shift(), 'callbackQueue');
+    }
+  }
+
+  pushStep(StepType.PROGRAM_END, null, null, [], 'Program execution completed');
 
   return steps;
 }

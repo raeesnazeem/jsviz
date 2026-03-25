@@ -14,17 +14,11 @@ const ExplanationPanel = () => {
   const renderText = () => {
     if (!text) return null;
     return (
-      <div className={styles.text} key={text}>
-        {text.split(' ').map((word, index) => (
-          <span
-            key={index}
-            className={styles.word}
-            style={{ animationDelay: `${index * 30}ms` }}
-          >
-            {word}{' '}
-          </span>
-        ))}
-      </div>
+      <div 
+        className={styles.textHTML} 
+        key={text}
+        dangerouslySetInnerHTML={{ __html: text }}
+      />
     );
   };
 

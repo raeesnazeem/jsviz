@@ -8,6 +8,12 @@ export default function FrameCard({ frame, isTop }) {
   // Keep track of previous variables to detect changes
   const prevVarsRef = useRef({});
   const [flashingVars, setFlashingVars] = useState({});
+  const [closedTooltips, setClosedTooltips] = useState({});
+
+  const closeTooltip = (e, name) => {
+    e.stopPropagation();
+    setClosedTooltips(prev => ({ ...prev, [name]: true }));
+  };
 
   useEffect(() => {
     const newFlashing = {};
@@ -57,9 +63,12 @@ export default function FrameCard({ frame, isTop }) {
       <div className={`${styles.header} ${isGlobal ? styles.globalHeader : styles.functionHeader}`}>
         <div className={styles.headerLeft}>
           {isTop && <span className={styles.activeDot} />}
-          <span className={styles.frameName}>{frame.name}</span>
+          <span className={styles.frameName}>
+            {isGlobal ? 'Global Execution Context' : `${frame.name}() Execution Context`}
+          </span>
         </div>
         <div className={styles.headerRight}>
+          {frame.inLabel && <span className={styles.inLabel}>{frame.inLabel}</span>}
           <span className={styles.lineNumber}>
             Line: {frame.currentLine || '-'}
           </span>
@@ -73,6 +82,8 @@ export default function FrameCard({ frame, isTop }) {
           variables.map(([name, variable]) => {
             const isUninitializedHoisted = variable.hoisted && !variable.initialized;
             const isFlashing = flashingVars[name];
+            const isFunction = variable.value && typeof variable.value === 'object' && variable.value.type === 'function';
+            const isTooltipClosed = closedTooltips[name];
             
             return (
               <div key={name} className={styles.varRow}>
@@ -83,10 +94,27 @@ export default function FrameCard({ frame, isTop }) {
                   {name}
                 </span>
                 <span 
-                  className={`${styles.varValue} ${isFlashing ? styles.flash : ''}`}
+                  className={`${styles.varValue} ${isFlashing ? styles.flash : ''} ${isFunction ? styles.fnContainer : ''}`}
                   style={isUninitializedHoisted ? { color: 'rgba(255, 165, 0, 0.5)' } : {}}
                 >
-                  {isUninitializedHoisted ? 'undefined' : String(variable.value)}
+                  {isUninitializedHoisted ? 'undefined' : (isFunction ? <i>fn</i> : String(variable.value))}
+                  
+                  {isFunction && (
+                    <div className={`${styles.tooltipBox} ${!isTooltipClosed ? styles.tooltipVisible : ''}`}>
+                       <div className={styles.tooltipHeader}>
+                          <button 
+                            className={styles.tooltipClose} 
+                            onClick={(e) => closeTooltip(e, name)}
+                            title="Close Tooltip"
+                          >
+                            ×
+                          </button>
+                       </div>
+                       <div className={styles.tooltipContent}>
+                          function {variable.value.name || 'anonymous'}({(variable.value.params || []).join(', ')}) {'{ ... }'}
+                       </div>
+                    </div>
+                  )}
                 </span>
               </div>
             );

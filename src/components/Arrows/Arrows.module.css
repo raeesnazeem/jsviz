@@ -38,3 +38,28 @@
     offset-distance: 100%;
   }
 }
+
+.toastLabel {
+  color: white;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: 'Outfit', sans-serif;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  font-weight: 600;
+  animation: popIn 0.3s ease-out forwards;
+  animation-delay: 0.2s; /* appear slightly after arrow begins */
+  opacity: 0;
+  white-space: nowrap;
+  width: max-content;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}

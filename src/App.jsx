@@ -39,7 +39,7 @@ function AppContent() {
       </div>
 
       {/* Main Content Area */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', marginBottom: 'var(--slider-h)' }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Left Column */}
         <div style={{ 
           width: 'var(--editor-w)', 
@@ -76,7 +76,8 @@ function AppContent() {
           <div style={{
             flex: 1,
             display: 'grid',
-            gridTemplateRows: '1fr auto auto',
+            minHeight: 0,
+            gridTemplateRows: '3fr auto 2fr',
             gridTemplateColumns: '1fr 1fr',
             gridTemplateAreas: `
               "callstack webapis"
@@ -93,13 +94,15 @@ function AppContent() {
             <div style={{ gridArea: 'eventloop', padding: '12px 0', borderTop: '1px solid var(--border)' }}>
               <EventLoop />
             </div>
-            <div style={{ gridArea: 'queue', borderTop: '1px solid var(--border)' }}>
+            <div style={{ gridArea: 'queue', borderTop: '1px solid var(--border)', overflow: 'hidden' }}>
               <CallbackQueue />
             </div>
           </div>
         </div>
       </div>
-      <ExplanationPanel />
+      <div style={{ marginBottom: 'var(--slider-h)' }}>
+        <ExplanationPanel />
+      </div>
       <StepSlider />
     </div>
   );

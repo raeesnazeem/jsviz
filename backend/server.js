@@ -37,27 +37,48 @@ app.get('/api/health', (req, res) => {
 
 app.post('/api/explain', async (req, res) => {
     try {
-        const { stepType, stepDescription, callStackDepth } = req.body;
+        const { stepType, stepDescription, callStackDepth, code, currentLine } = req.body;
 
         // Ensure headers are set for SSE
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
 
+        let codeSnippet = '';
+        if (code && currentLine) {
+            const lines = code.split('\n');
+            codeSnippet = lines[currentLine - 1] || '';
+        }
+
         const stream = await groq.chat.completions.create({
             messages: [
                 {
                     role: 'system',
-                    content: 'You are a JavaScript teacher explaining execution to a beginner. 3 short sentences max. No jargon. Be warm.'
+                    content: `You are a JavaScript tutor for beginners.
+Explain this execution step mechanically and straight to the point, using the shortest sentences possible.
+Keep the language extremely simple but strictly use technical terms like "Call Stack", "Execution Context", "Web APIs", "Callback Queue", "Microtask Queue", or "Event Loop" when relevant.
+Do NOT use filler words or conversational fluff to save tokens. Be extremely concise.
+
+CRITICAL FORMATTING INSTRUCTION:
+You MUST format your ONLY response directly in raw HTML. Do not wrap it in markdown blockticks.
+Format it EXACTLY like this:
+<h3>[Step Name]</h3>
+<p>[Ultra-concise, simple 1-2 sentence explanation]</p>
+<ul>
+  <li>[Optional: bullet points for multiple fast actions]</li>
+</ul>`
                 },
                 {
                     role: 'user',
-                    content: `Step: ${stepType || 'Next step'}. Description: ${stepDescription || 'Moving forward'}. Depth: ${callStackDepth || 1}.`
+                    content: `Here is the current step in the engine:
+Engine Action: ${stepDescription || 'Moving forward'}
+Code Line: "${codeSnippet.trim()}"
+Explain exactly what is happening in simple terms right now.`
                 }
             ],
             model: 'llama-3.1-8b-instant',
             stream: true,
-            max_tokens: 150,
+            max_tokens: 250,
         });
 
         for await (const chunk of stream) {

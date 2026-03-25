@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useVisualizer } from '../context/VisualizerContext';
 
 function hashCode(str) {
@@ -10,12 +10,15 @@ function hashCode(str) {
   return hash.toString(36);
 }
 
+// Global cache exists outside the component lifecycle to survive remounts
+const explanationCache = new Map();
+const activeControllers = new Map();
+
 export function useExplanation() {
   const { currentStep, currentIndex, code } = useVisualizer();
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
-  const cache = useRef(new Map());
 
   useEffect(() => {
     if (!currentStep) {
@@ -26,12 +29,21 @@ export function useExplanation() {
     const codeHash = hashCode(code || '');
     const cacheKey = `${codeHash}:${currentIndex}`;
 
-    if (cache.current.has(cacheKey)) {
-      setText(cache.current.get(cacheKey));
+    if (explanationCache.has(cacheKey)) {
+      setText(explanationCache.get(cacheKey));
       setLoading(false);
       setError(false);
       return;
     }
+
+    // Cancel any existing request for this exact component instance if scrubbing fast
+    // Actually, we'll just track by cacheKey to ensure we don't make parallel exact overlapping calls
+    if (activeControllers.has(cacheKey)) {
+      activeControllers.get(cacheKey).abort();
+    }
+
+    const controller = new AbortController();
+    activeControllers.set(cacheKey, controller);
 
     let isMounted = true;
     let accumulatedText = '';
@@ -53,7 +65,8 @@ export function useExplanation() {
             currentLine: currentStep.currentLine,
             callStackDepth: currentStep.callStack ? currentStep.callStack.length : 0,
             code: code
-          })
+          }),
+          signal: controller.signal
         });
 
         if (!response.ok) {
@@ -74,10 +87,9 @@ export function useExplanation() {
             if (line.startsWith('data: ')) {
               const data = line.slice(6);
               if (data === '[DONE]') {
-                if (isMounted) {
-                  cache.current.set(cacheKey, accumulatedText);
-                  setLoading(false);
-                }
+                explanationCache.set(cacheKey, accumulatedText);
+                activeControllers.delete(cacheKey);
+                if (isMounted) setLoading(false);
                 return;
               }
 
@@ -96,12 +108,18 @@ export function useExplanation() {
           }
         }
       } catch (err) {
-        console.error('Explanation fetch error:', err);
-        if (isMounted) {
-          setError(true);
-          setText(currentStep.description || 'Failed to load explanation.');
-          setLoading(false);
+        if (err.name === 'AbortError') {
+          // It was manually cancelled, do not write error states!
+          console.log('AI fetch aborted for cache key:', cacheKey);
+        } else {
+          console.error('Explanation fetch error:', err);
+          if (isMounted) {
+            setError(true);
+            setText(currentStep.description || 'Failed to load explanation.');
+            setLoading(false);
+          }
         }
+        activeControllers.delete(cacheKey);
       }
     };
 
@@ -109,6 +127,10 @@ export function useExplanation() {
 
     return () => {
       isMounted = false;
+      if (activeControllers.has(cacheKey)) {
+        activeControllers.get(cacheKey).abort();
+        activeControllers.delete(cacheKey);
+      }
     };
   }, [currentStep, currentIndex, code]);
 

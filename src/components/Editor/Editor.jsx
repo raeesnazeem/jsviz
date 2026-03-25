@@ -9,17 +9,66 @@ import { useArrows } from '../../context/ArrowContext';
 import { runInterpreter } from '../../interpreter/interpreter';
 import styles from './Editor.module.css';
 
-const defaultCode = `var count = 0;
+const defaultCode = `var globalCounter = 0;
+let stage = 'Init';
+const multiplier = 2;
 
-function makeAdder(x) {
-  return function(y) {
-    return x + y;
+// Function Hoisting and Closure test
+function createMultiplier(factor) {
+  return function(value) {
+    return value * factor;
   };
 }
 
-var add5 = makeAdder(5);
-count += add5(2);
-console.log(count);`;
+var double = createMultiplier(multiplier);
+var triple = createMultiplier(3);
+
+console.log(stage);
+
+function processData() {
+  globalCounter = globalCounter + double(5);
+  console.log('Sync processing... Counter:', globalCounter);
+  return globalCounter;
+}
+
+// Multi-layered Microtask Test
+Promise.resolve().then(() => {
+  var x = triple(4);
+  console.log('Microtask 1 resolving:', x);
+  
+  Promise.resolve().then(() => {
+     console.log('Nested Microtask deeper in the queue!');
+  });
+});
+
+// Deep Macrotask Test
+setTimeout(() => {
+  var y = double(10);
+  console.log('Macrotask 1 ticked:', y);
+  
+  setTimeout(() => {
+      console.log('Nested Macrotask finished!');
+  }, 0);
+}, 0);
+
+// Core execution tracking
+function main() {
+  processData();
+  
+  Promise.resolve().then(() => {
+    console.log('Microtask 2 executing end-state:', globalCounter);
+  });
+  
+  setTimeout(() => {
+    console.log('Macrotask 2 taking over:', globalCounter);
+  }, 0);
+  
+  processData();
+}
+
+main();
+
+console.log('End of synchronous initialization');`;
 
 const currentLineMark = Decoration.line({
   attributes: { style: 'background-color: var(--line-current)' }
