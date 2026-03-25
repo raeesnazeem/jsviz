@@ -1,9 +1,56 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styles from './FrameCard.module.css';
 
-export default function FrameCard({ frame, isTop, depth }) {
+export default function FrameCard({ frame, isTop }) {
   const isGlobal = frame.type === 'global';
   const variables = Object.entries(frame.variables);
+  
+  // Keep track of previous variables to detect changes
+  const prevVarsRef = useRef({});
+  const [flashingVars, setFlashingVars] = useState({});
+
+  useEffect(() => {
+    const newFlashing = {};
+    let hasChanges = false;
+
+    const currentVariables = Object.entries(frame.variables);
+
+    for (const [name, variable] of currentVariables) {
+      const prevVar = prevVarsRef.current[name];
+      // Compare stringified values since that's what we display
+      const currentDisplayValue = String(variable.value);
+      const prevDisplayValue = prevVar ? String(prevVar.value) : undefined;
+
+      if (prevVar && currentDisplayValue !== prevDisplayValue) {
+        newFlashing[name] = true;
+        hasChanges = true;
+      }
+    }
+
+    if (hasChanges) {
+      // Use setTimeout to avoid synchronous setState within effect lint error
+      setTimeout(() => {
+        setFlashingVars(prev => ({ ...prev, ...newFlashing }));
+      }, 0);
+      
+      // Clear flash class after animation completes (400ms)
+      const timer = setTimeout(() => {
+        setFlashingVars(prev => {
+          const updated = { ...prev };
+          for (const key in newFlashing) {
+            delete updated[key];
+          }
+          return updated;
+        });
+      }, 400);
+
+      prevVarsRef.current = frame.variables;
+      return () => clearTimeout(timer);
+    }
+
+    // Update the ref for the next render
+    prevVarsRef.current = frame.variables;
+  }, [frame.variables]);
 
   return (
     <div className={`${styles.card} ${isTop ? styles.topFrame : ''}`}>
@@ -25,6 +72,7 @@ export default function FrameCard({ frame, isTop, depth }) {
         ) : (
           variables.map(([name, variable]) => {
             const isUninitializedHoisted = variable.hoisted && !variable.initialized;
+            const isFlashing = flashingVars[name];
             
             return (
               <div key={name} className={styles.varRow}>
@@ -35,7 +83,7 @@ export default function FrameCard({ frame, isTop, depth }) {
                   {name}
                 </span>
                 <span 
-                  className={styles.varValue}
+                  className={`${styles.varValue} ${isFlashing ? styles.flash : ''}`}
                   style={isUninitializedHoisted ? { color: 'rgba(255, 165, 0, 0.5)' } : {}}
                 >
                   {isUninitializedHoisted ? 'undefined' : String(variable.value)}

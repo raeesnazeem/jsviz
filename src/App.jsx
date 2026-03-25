@@ -1,5 +1,5 @@
 import React from 'react';
-import VisualizerProvider from './context/VisualizerContext';
+import VisualizerProvider, { useVisualizer } from './context/VisualizerContext';
 import { ArrowProvider } from './context/ArrowContext';
 import { usePlayback } from './hooks/usePlayback';
 import CallStack from './components/CallStack/CallStack';
@@ -16,6 +16,7 @@ import './styles/global.css';
 // We create an inner component to use hooks that depend on contexts
 function AppContent() {
   usePlayback(); // initialize playback timer
+  const { currentStep, currentIndex } = useVisualizer();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw' }}>
@@ -57,26 +58,44 @@ function AppContent() {
         <div style={{ 
           width: 'var(--viz-w)', 
           height: '100%', 
-          display: 'grid',
-          gridTemplateRows: '1fr auto auto',
-          gridTemplateColumns: '1fr 1fr',
-          gridTemplateAreas: `
-            "callstack webapis"
-            "eventloop eventloop"
-            "queue queue"
-          `
+          display: 'flex',
+          flexDirection: 'column'
         }}>
-          <div style={{ gridArea: 'callstack', overflow: 'hidden' }}>
-            <CallStack />
+          {/* Status Bar */}
+          <div style={{
+            background: 'var(--bg-secondary)',
+            padding: '6px 12px',
+            fontFamily: 'Outfit, sans-serif',
+            fontSize: '12px',
+            color: 'var(--text-secondary)',
+            borderBottom: '1px solid var(--border)'
+          }}>
+            Step {currentIndex + 1}: {currentStep?.description || "Ready"}
           </div>
-          <div style={{ gridArea: 'webapis', overflow: 'hidden', borderLeft: '1px solid var(--border)' }}>
-            <WebApis />
-          </div>
-          <div style={{ gridArea: 'eventloop', padding: '12px 0', borderTop: '1px solid var(--border)' }}>
-            <EventLoop />
-          </div>
-          <div style={{ gridArea: 'queue', borderTop: '1px solid var(--border)' }}>
-            <CallbackQueue />
+
+          <div style={{
+            flex: 1,
+            display: 'grid',
+            gridTemplateRows: '1fr auto auto',
+            gridTemplateColumns: '1fr 1fr',
+            gridTemplateAreas: `
+              "callstack webapis"
+              "eventloop eventloop"
+              "queue queue"
+            `
+          }}>
+            <div style={{ gridArea: 'callstack', overflow: 'hidden' }}>
+              <CallStack />
+            </div>
+            <div style={{ gridArea: 'webapis', overflow: 'hidden', borderLeft: '1px solid var(--border)' }}>
+              <WebApis />
+            </div>
+            <div style={{ gridArea: 'eventloop', padding: '12px 0', borderTop: '1px solid var(--border)' }}>
+              <EventLoop />
+            </div>
+            <div style={{ gridArea: 'queue', borderTop: '1px solid var(--border)' }}>
+              <CallbackQueue />
+            </div>
           </div>
         </div>
       </div>
