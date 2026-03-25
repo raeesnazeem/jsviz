@@ -5,6 +5,7 @@ import { javascript } from '@codemirror/lang-javascript';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { basicSetup } from 'codemirror';
 import { useVisualizer } from '../../context/VisualizerContext';
+import { useArrows } from '../../context/ArrowContext';
 import { runInterpreter } from '../../interpreter/interpreter';
 import styles from './Editor.module.css';
 
@@ -30,7 +31,14 @@ const nextLineMark = Decoration.line({
 export default function Editor() {
   const editor = useRef(null);
   const viewRef = useRef(null);
+  const containerRef = useRef(null);
   const { code, dispatch, isRunning, currentStep } = useVisualizer();
+  const { registerPanel } = useArrows();
+
+  useEffect(() => {
+    registerPanel('editor', containerRef);
+    return () => registerPanel('editor', null);
+  }, [registerPanel]);
 
   useEffect(() => {
     if (!code) {
@@ -130,7 +138,7 @@ export default function Editor() {
   };
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} ref={containerRef}>
       <div className={styles.toolbar}>
         {!isRunning ? (
           <button className={styles.runButton} onClick={handleRun}>Run</button>

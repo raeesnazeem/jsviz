@@ -1,0 +1,40 @@
+.svgContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.path {
+  fill: none;
+  stroke-width: 2px;
+}
+
+.animatePath {
+  stroke-dasharray: var(--path-length);
+  stroke-dashoffset: var(--path-length);
+  animation: drawArrow var(--anim-arrow) ease-out forwards;
+}
+
+.circle {
+  offset-distance: 0%;
+}
+
+.animateCircle {
+  animation: moveCircle var(--anim-arrow) ease-out forwards;
+}
+
+@keyframes drawArrow {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes moveCircle {
+  to {
+    offset-distance: 100%;
+  }
+}

@@ -1,13 +1,22 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useVisualizer } from '../../context/VisualizerContext';
+import { useArrows } from '../../context/ArrowContext';
 import styles from './WebApis.module.css';
 
 export default function WebApis() {
   const { currentStep } = useVisualizer();
+  const { registerPanel } = useArrows();
+  const containerRef = useRef(null);
+  
   const webApis = currentStep?.webApis || [];
 
+  useEffect(() => {
+    registerPanel('webApis', containerRef);
+    return () => registerPanel('webApis', null);
+  }, [registerPanel]);
+
   return (
-    <div className={styles.container}>
+    <div className={styles.container} ref={containerRef}>
       <div className={styles.header}>WEB APIS</div>
       
       {webApis.length === 0 ? (
