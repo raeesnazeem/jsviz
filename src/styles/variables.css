@@ -45,6 +45,7 @@
 
   /* Layout dimensions */
   --header-h: 56px;
+  --slider-h: 60px;
   --editor-w: 40%;
   --viz-w: 60%;
 }

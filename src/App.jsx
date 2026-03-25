@@ -7,6 +7,7 @@ import CallbackQueue from './components/CallbackQueue/CallbackQueue';
 import EventLoop from './components/EventLoop/EventLoop';
 import Editor from './components/Editor/Editor';
 import Arrows from './components/Arrows/Arrows';
+import StepSlider from './components/StepSlider/StepSlider';
 import './styles/global.css';
 
 function App() {
@@ -33,7 +34,7 @@ function App() {
           </div>
 
           {/* Main Content Area */}
-          <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', flex: 1, overflow: 'hidden', marginBottom: 'var(--slider-h)' }}>
             {/* Left Column */}
             <div style={{ width: 'var(--editor-w)', height: '100%', borderRight: '1px solid var(--border)' }}>
               <Editor />
@@ -66,6 +67,7 @@ function App() {
               </div>
             </div>
           </div>
+          <StepSlider />
         </div>
         <Arrows />
       </ArrowProvider>
