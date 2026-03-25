@@ -64,7 +64,7 @@ app.post('/api/explain', async (req, res) => {
         for await (const chunk of stream) {
             const content = chunk.choices[0]?.delta?.content || '';
             if (content) {
-                // The SDK handles the parsing; you just send the text
+                // The SDK handles the parsing - we just send the text
                 res.write(`data: ${JSON.stringify({ text: content })}\n\n`);
             }
         }
@@ -75,7 +75,7 @@ app.post('/api/explain', async (req, res) => {
     } catch (error) {
         console.error("Groq SDK Error:", error);
         
-        // Handle the 400 error specifically if it happens again
+        // Handle the 400 error specifically
         if (!res.headersSent) {
             res.status(500).json({ 
                 error: 'AI unavailable', 
