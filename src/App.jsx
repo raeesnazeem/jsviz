@@ -9,6 +9,7 @@ import EventLoop from './components/EventLoop/EventLoop';
 import Editor from './components/Editor/Editor';
 import Arrows from './components/Arrows/Arrows';
 import StepSlider from './components/StepSlider/StepSlider';
+import ExplanationPanel from './components/ExplanationPanel/ExplanationPanel';
 import './styles/global.css';
 
 // We create an inner component to use hooks that depend on contexts
@@ -69,6 +70,7 @@ function AppContent() {
           </div>
         </div>
       </div>
+      <ExplanationPanel />
       <StepSlider />
     </div>
   );
