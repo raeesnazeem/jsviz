@@ -42,17 +42,24 @@ export default function Editor() {
     return () => registerPanel('editor', null);
   }, [registerPanel]);
 
+  const hasInitialized = useRef(false);
+
   useEffect(() => {
-    if (!code) {
-      dispatch({ type: 'SET_CODE', payload: defaultCode });
+    if (!hasInitialized.current) {
+      if (!code) {
+        dispatch({ type: 'SET_CODE', payload: defaultCode });
+      }
+      hasInitialized.current = true;
     }
   }, [code, dispatch]);
 
   useEffect(() => {
     if (!editor.current) return;
 
+    const initialCode = (!hasInitialized.current && !code) ? defaultCode : code;
+    
     const startState = EditorState.create({
-      doc: code || defaultCode,
+      doc: initialCode,
       extensions: [
         basicSetup,
         javascript(),
@@ -81,6 +88,18 @@ export default function Editor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); 
 
+  // Handle external code changes safely without full EditorState recreation
+  useEffect(() => {
+    if (viewRef.current && typeof code === 'string') {
+      const currentDoc = viewRef.current.state.doc.toString();
+      if (code !== currentDoc) {
+        viewRef.current.dispatch({
+          changes: { from: 0, to: currentDoc.length, insert: code }
+        });
+      }
+    }
+  }, [code]);
+
   useEffect(() => {
     if (viewRef.current) {
       // Create a completely new state instead of dispatching to read-only EditorView
@@ -91,7 +110,7 @@ export default function Editor() {
         javascript(),
         oneDark,
         lineNumbers(),
-        EditorState.readOnly.of(isRunning),
+        EditorState.readOnly.of(isRunning || false),
         EditorView.updateListener.of((update) => {
           if (update.docChanged && !isRunning) {
             dispatch({ type: 'SET_CODE', payload: update.state.doc.toString() });
@@ -119,11 +138,11 @@ export default function Editor() {
       }
 
       viewRef.current.setState(EditorState.create({
-        doc: isRunning ? viewRef.current.state.doc.toString() : code,
+        doc: viewRef.current.state.doc.toString(),
         extensions
       }));
     }
-  }, [isRunning, currentStep, code, dispatch]);
+  }, [isRunning, currentStep, dispatch]);
 
   const handleRun = () => {
     setIsProcessing(true);
