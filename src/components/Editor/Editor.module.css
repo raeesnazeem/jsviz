@@ -1,0 +1,68 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.toolbar {
+  display: flex;
+  padding: 10px;
+  background-color: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.runButton {
+  background-color: var(--orange);
+  color: white;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: bold;
+  padding: 6px 20px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.runButton:hover {
+  opacity: 0.9;
+}
+
+.editButton {
+  background-color: transparent;
+  color: var(--text-light);
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  padding: 6px 20px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.editButton:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.editorWrapper {
+  flex: 1;
+  overflow: auto;
+}
+
+/* CodeMirror specific overrides to fit the design */
+.editorWrapper :global(.cm-editor) {
+  height: 100%;
+  background-color: var(--bg-editor);
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.editorWrapper :global(.cm-scroller) {
+  font-family: inherit;
+}
+
+.editorWrapper :global(.cm-gutters) {
+  background-color: var(--bg-editor);
+  color: var(--text-muted);
+  border-right: 1px solid var(--border);
+}
