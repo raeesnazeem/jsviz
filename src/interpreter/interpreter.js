@@ -1,5 +1,5 @@
-import StepType from './stepTypes';
-import { parseCode } from './parser';
+import StepType from './stepTypes.js';
+import { parseCode } from './parser.js';
 
 function createFrame(id, name, type, outerRef) {
   return {
@@ -83,10 +83,19 @@ function makeStep(id, type, currentLine, nextLine, callStack, webApis, callbackQ
   };
 }
 
+export function runInterpreter(sourceCode) {
+  const { ast, error } = parseCode(sourceCode);
+  if (error) {
+    throw new Error(`Parse error: ${error.message}`);
+  }
+  return interpretAST(ast, sourceCode);
+}
+
 export function interpretAST(ast, source) {
   const steps = [];
   let stepId = 0;
   const callStack = [];
+  const allFrames = [];
   const webApis = [];
   const callbackQueue = [];
   const consoleOutput = [];
@@ -112,6 +121,7 @@ export function interpretAST(ast, source) {
   const globalFrame = createFrame('global', 'Global', 'global', null);
   globalFrame.isActive = true;
   callStack.push(globalFrame);
+  allFrames.push(globalFrame);
 
   // Step 2 - Hoisting pass over the top-level body
   if (ast && ast.body) {
@@ -124,27 +134,136 @@ export function interpretAST(ast, source) {
           }
         }
       } else if (node.type === 'FunctionDeclaration' && node.id) {
-        globalFrame.variables[node.id.name] = createVariable('[Function]', 'var', true, true);
+        globalFrame.variables[node.id.name] = createVariable({
+          type: 'function',
+          name: node.id.name,
+          params: node.params.map(p => p.name),
+          body: node.body,
+          outerRef: 'global'
+        }, 'var', true, true);
         pushStep(StepType.FN_HOIST, node.loc?.start?.line, null, [], `Hoisting function ${node.id.name}`);
       }
     }
   }
 
+  function evalExpr(expr, currentFrame) {
+    if (!expr) return undefined;
+    
+    switch (expr.type) {
+      case 'Literal':
+        return expr.value;
+        
+      case 'Identifier': {
+        const variable = lookupVariable(expr.name, currentFrame.id, allFrames);
+        return variable ? variable.value : undefined;
+      }
+        
+      case 'BinaryExpression': {
+        const left = evalExpr(expr.left, currentFrame);
+        const right = evalExpr(expr.right, currentFrame);
+        if (expr.operator === '+') return left + right;
+        if (expr.operator === '-') return left - right;
+        if (expr.operator === '*') return left * right;
+        if (expr.operator === '/') return left / right;
+        return undefined;
+      }
+        
+      case 'FunctionExpression':
+      case 'ArrowFunctionExpression': {
+        pushStep(StepType.CLOSURE_CAPTURE, expr.loc?.start?.line, null, [], `Capturing closure`);
+        return {
+          type: 'function',
+          name: expr.id ? expr.id.name : 'anonymous',
+          params: expr.params.map(p => p.name),
+          body: expr.body,
+          outerRef: currentFrame.id
+        };
+      }
+        
+      case 'CallExpression': {
+        const callee = evalExpr(expr.callee, currentFrame);
+        const args = expr.arguments.map(arg => evalExpr(arg, currentFrame));
+        
+        if (callee && callee.type === 'function') {
+          const frameId = 'frame_' + stepId;
+          const fnFrame = createFrame(frameId, callee.name, 'function', callee.outerRef);
+          fnFrame.isActive = true;
+          allFrames.push(fnFrame);
+          
+          callee.params.forEach((paramName, i) => {
+            fnFrame.variables[paramName] = createVariable(args[i], 'var', false, true);
+          });
+          
+          currentFrame.isActive = false;
+          callStack.push(fnFrame);
+          
+          pushStep(StepType.FN_CALL, expr.loc?.start?.line, null, [], `Calling ${callee.name}`);
+          
+          if (callee.body.type === 'BlockStatement') {
+            for (const stmt of callee.body.body) {
+              executeNode(stmt);
+              if (fnFrame.hasReturned) break;
+            }
+          } else {
+            fnFrame.returnValue = evalExpr(callee.body, fnFrame);
+          }
+          
+          const retVal = fnFrame.returnValue;
+          
+          callStack.pop();
+          const newCurrent = callStack[callStack.length - 1];
+          if (newCurrent) newCurrent.isActive = true;
+          
+          pushStep(StepType.FN_RETURN, expr.loc?.start?.line, null, [], `Returning from ${callee.name}`);
+          
+          return retVal;
+        }
+        return undefined;
+      }
+      default:
+        return undefined;
+    }
+  }
+
   function executeNode(node) {
     if (!node) return;
+    const currentFrame = callStack[callStack.length - 1];
     
     switch (node.type) {
       case 'VariableDeclaration':
         for (const decl of node.declarations) {
-          // evaluate init expression (evalExpr to be implemented)
-          // const initValue = evalExpr(decl.init, currentFrame); 
+          const initValue = evalExpr(decl.init, currentFrame); 
           
           if (node.kind === 'var') {
-            // update hoisted variable value, set initialized=true, push ASSIGN
+            setVariable(decl.id.name, initValue, currentFrame.id, allFrames);
+            pushStep(StepType.ASSIGN, node.loc?.start?.line, null, [], `Assigning to ${decl.id.name}`);
           } else if (node.kind === 'let' || node.kind === 'const') {
-            // add to current frame, push LET_CONST_DECLARE
+            currentFrame.variables[decl.id.name] = createVariable(initValue, node.kind, false, true);
+            pushStep(StepType.LET_CONST_DECLARE, node.loc?.start?.line, null, [], `Declaring ${decl.id.name}`);
           }
         }
+        break;
+        
+      case 'ExpressionStatement':
+        if (node.expression.type === 'AssignmentExpression') {
+          const left = node.expression.left;
+          if (left.type === 'Identifier') {
+            const rightValue = evalExpr(node.expression.right, currentFrame);
+            setVariable(left.name, rightValue, currentFrame.id, allFrames);
+            pushStep(StepType.ASSIGN, node.loc?.start?.line, null, [], `Assigning to ${left.name}`);
+          }
+        } else {
+          evalExpr(node.expression, currentFrame);
+        }
+        break;
+        
+      case 'ReturnStatement':
+        currentFrame.returnValue = evalExpr(node.argument, currentFrame);
+        currentFrame.hasReturned = true;
+        break;
+        
+      case 'FunctionDeclaration':
+        // already hoisted
         break;
     }
   }
