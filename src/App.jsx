@@ -7,6 +7,7 @@ import WebApis from './components/WebApis/WebApis';
 import CallbackQueue from './components/CallbackQueue/CallbackQueue';
 import EventLoop from './components/EventLoop/EventLoop';
 import Editor from './components/Editor/Editor';
+import Console from './components/Console/Console';
 import Arrows from './components/Arrows/Arrows';
 import StepSlider from './components/StepSlider/StepSlider';
 import ExplanationPanel from './components/ExplanationPanel/ExplanationPanel';
@@ -39,8 +40,17 @@ function AppContent() {
       {/* Main Content Area */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', marginBottom: 'var(--slider-h)' }}>
         {/* Left Column */}
-        <div style={{ width: 'var(--editor-w)', height: '100%', borderRight: '1px solid var(--border)' }}>
-          <Editor />
+        <div style={{ 
+          width: 'var(--editor-w)', 
+          height: '100%', 
+          borderRight: '1px solid var(--border)',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <Editor />
+          </div>
+          <Console />
         </div>
         
         {/* Right Column */}
