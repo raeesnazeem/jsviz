@@ -1,0 +1,45 @@
+
+:root {
+  /* Brand */
+  --orange: #E35C00;
+  --orange-light: #FF7D30;
+
+  /* Backgrounds */
+  --bg-primary: #0F0F0F;
+  --bg-secondary: #1F1F1F;
+  --bg-panel: #171717;
+  --bg-code: #1E1E1E;
+  --bg-console: #141414;
+
+  /* Execution context card colors */
+  --ctx-global: #1E3A8A;
+  --ctx-function: #0F5E3A;
+  --ctx-closure: #5B21B6;
+
+  /* Text */
+  --text-primary: #FFFFFF;
+  --text-secondary: #B5B5B5;
+  --text-muted: #777777;
+  --text-code: #E5E7EB;
+
+  /* Borders */
+  --border: #2D2D2D;
+  --border-dark: #0A0A0A;
+
+  /* Arrow colors */
+  --arrow-call: #D97706;
+  --arrow-return: #0F766E;
+  --arrow-assign: #1D4ED8;
+  --arrow-async: #E35C00;
+  --arrow-log: #15803D;
+  --arrow-queue: #7C3AED;
+
+  /* Line highlights */
+  --line-current: rgba(227, 92, 0, 0.10);
+  --line-next: rgba(29, 78, 216, 0.10);
+
+  /* Animation */
+  --anim-step: 350ms;
+  --anim-fast: 150ms;
+  --anim-arrow: 550ms;
+}
