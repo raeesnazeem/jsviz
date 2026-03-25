@@ -1,0 +1,68 @@
+.container {
+  width: 100%;
+  background-color: var(--bg-panel);
+  padding: 12px;
+}
+
+.header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-family: 'Outfit', sans-serif;
+  text-transform: lowercase;
+  font-variant: small-caps;
+}
+
+.emptyState {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 13px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.apiName {
+  color: var(--orange);
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.callbackName {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.progressTrack {
+  height: 2px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  background-color: var(--orange);
+  border-radius: 1px;
+}
