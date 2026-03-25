@@ -83,4 +83,78 @@ function makeStep(id, type, currentLine, nextLine, callStack, webApis, callbackQ
   };
 }
 
-export {};
+export function interpretAST(ast, source) {
+  const steps = [];
+  let stepId = 0;
+  const callStack = [];
+  const webApis = [];
+  const callbackQueue = [];
+  const consoleOutput = [];
+  let timeoutId = 0;
+
+  function pushStep(type, line, nextLine, arrows, desc) {
+    steps.push(makeStep(
+      stepId++, 
+      type, 
+      line, 
+      nextLine, 
+      callStack, 
+      webApis, 
+      callbackQueue, 
+      consoleOutput, 
+      arrows, 
+      desc
+    ));
+  }
+
+  // Step 1 - Global context creation
+  pushStep(StepType.GLOBAL_CTX_CREATE, null, null, [], 'Creating global execution context');
+  const globalFrame = createFrame('global', 'Global', 'global', null);
+  globalFrame.isActive = true;
+  callStack.push(globalFrame);
+
+  // Step 2 - Hoisting pass over the top-level body
+  if (ast && ast.body) {
+    for (const node of ast.body) {
+      if (node.type === 'VariableDeclaration' && node.kind === 'var') {
+        for (const decl of node.declarations) {
+          if (decl.id.type === 'Identifier') {
+            globalFrame.variables[decl.id.name] = createVariable(undefined, 'var', true, false);
+            pushStep(StepType.VAR_HOIST, node.loc?.start?.line, null, [], `Hoisting var ${decl.id.name}`);
+          }
+        }
+      } else if (node.type === 'FunctionDeclaration' && node.id) {
+        globalFrame.variables[node.id.name] = createVariable('[Function]', 'var', true, true);
+        pushStep(StepType.FN_HOIST, node.loc?.start?.line, null, [], `Hoisting function ${node.id.name}`);
+      }
+    }
+  }
+
+  function executeNode(node) {
+    if (!node) return;
+    
+    switch (node.type) {
+      case 'VariableDeclaration':
+        for (const decl of node.declarations) {
+          // evaluate init expression (evalExpr to be implemented)
+          // const initValue = evalExpr(decl.init, currentFrame); 
+          
+          if (node.kind === 'var') {
+            // update hoisted variable value, set initialized=true, push ASSIGN
+          } else if (node.kind === 'let' || node.kind === 'const') {
+            // add to current frame, push LET_CONST_DECLARE
+          }
+        }
+        break;
+    }
+  }
+
+  // Step 3 - Execute statements in order
+  if (ast && ast.body) {
+    for (const node of ast.body) {
+      executeNode(node);
+    }
+  }
+
+  return steps;
+}
