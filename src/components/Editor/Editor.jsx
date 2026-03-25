@@ -120,6 +120,7 @@ export default function Editor() {
       const steps = runInterpreter(code);
       dispatch({ type: 'SET_STEPS', payload: steps });
     } catch (err) {
+      console.error("Run error:", err);
       dispatch({ type: 'SET_ERROR', payload: err.message });
     }
   };

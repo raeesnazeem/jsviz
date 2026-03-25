@@ -42,4 +42,9 @@
   --anim-step: 350ms;
   --anim-fast: 150ms;
   --anim-arrow: 550ms;
+
+  /* Layout dimensions */
+  --header-h: 56px;
+  --editor-w: 40%;
+  --viz-w: 60%;
 }

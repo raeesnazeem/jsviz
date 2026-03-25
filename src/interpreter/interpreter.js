@@ -117,11 +117,11 @@ export function interpretAST(ast, source) {
   }
 
   // Step 1 - Global context creation
-  pushStep(StepType.GLOBAL_CTX_CREATE, null, null, [], 'Creating global execution context');
   const globalFrame = createFrame('global', 'Global', 'global', null);
   globalFrame.isActive = true;
   callStack.push(globalFrame);
   allFrames.push(globalFrame);
+  pushStep(StepType.GLOBAL_CTX_CREATE, null, null, [], 'Creating global execution context');
 
   // Step 2 - Hoisting pass over the top-level body
   if (ast && ast.body) {
