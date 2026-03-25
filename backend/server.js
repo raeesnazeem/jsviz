@@ -8,8 +8,6 @@ dotenv.config();
 const Groq = require('groq-sdk');
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-
-
 const app = express();
 const PORT = 3001;
 
@@ -27,6 +25,7 @@ const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100
 });
+app.use('/api/', apiLimiter);
 
 // --- ROUTES ---
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { EditorState } from '@codemirror/state';
 import { EditorView, lineNumbers, Decoration } from '@codemirror/view';
 import { javascript } from '@codemirror/lang-javascript';
@@ -18,7 +18,8 @@ function makeAdder(x) {
 }
 
 var add5 = makeAdder(5);
-count += add5(2);`;
+count += add5(2);
+console.log(count);`;
 
 const currentLineMark = Decoration.line({
   attributes: { style: 'background-color: var(--line-current)' }
@@ -34,6 +35,7 @@ export default function Editor() {
   const containerRef = useRef(null);
   const { code, dispatch, isRunning, currentStep } = useVisualizer();
   const { registerPanel } = useArrows();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     registerPanel('editor', containerRef);
@@ -124,13 +126,20 @@ export default function Editor() {
   }, [isRunning, currentStep, code, dispatch]);
 
   const handleRun = () => {
-    try {
-      const steps = runInterpreter(code);
-      dispatch({ type: 'SET_STEPS', payload: steps });
-    } catch (err) {
-      console.error("Run error:", err);
-      dispatch({ type: 'SET_ERROR', payload: err.message });
-    }
+    setIsProcessing(true);
+    
+    // Use a small timeout to allow UI to update to loading state before heavy processing
+    setTimeout(() => {
+      try {
+        const steps = runInterpreter(code);
+        dispatch({ type: 'SET_STEPS', payload: steps });
+      } catch (err) {
+        console.error("Run error:", err);
+        dispatch({ type: 'SET_ERROR', payload: err.message });
+      } finally {
+        setIsProcessing(false);
+      }
+    }, 50);
   };
 
   const handleEdit = () => {
@@ -141,7 +150,15 @@ export default function Editor() {
     <div className={styles.container} ref={containerRef}>
       <div className={styles.toolbar}>
         {!isRunning ? (
-          <button className={styles.runButton} onClick={handleRun}>Run</button>
+          <button 
+            className={styles.runButton} 
+            onClick={handleRun}
+            disabled={isProcessing}
+          >
+            {isProcessing ? (
+              <span className={styles.spinner}></span>
+            ) : "Run"}
+          </button>
         ) : (
           <button className={styles.editButton} onClick={handleEdit}>Edit</button>
         )}

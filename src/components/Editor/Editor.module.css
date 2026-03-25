@@ -22,10 +22,19 @@
   border: none;
   cursor: pointer;
   transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 70px;
 }
 
-.runButton:hover {
+.runButton:hover:not(:disabled) {
   opacity: 0.9;
+}
+
+.runButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .editButton {
@@ -42,6 +51,19 @@
 
 .editButton:hover {
   background-color: rgba(255, 255, 255, 0.05);
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .editorWrapper {

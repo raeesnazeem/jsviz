@@ -1,104 +1,69 @@
+import { describe, it, expect } from 'vitest';
 import { runInterpreter } from './interpreter.js';
 
-let passCount = 0;
-let failCount = 0;
+describe('Interpreter', () => {
+  it('handles variable assignment', () => {
+    const code = 'var x = 5;';
+    const steps = runInterpreter(code);
+    
+    expect(steps.length).toBeGreaterThanOrEqual(3);
+    
+    const hasGlobalCtxCreate = steps.some(s => s.type === 'GLOBAL_CTX_CREATE');
+    expect(hasGlobalCtxCreate).toBe(true);
+    
+    const hasVarHoist = steps.some(s => s.type === 'VAR_HOIST');
+    expect(hasVarHoist).toBe(true);
+    
+    const assignStep = steps.find(s => s.type === 'ASSIGN');
+    expect(assignStep).toBeDefined();
+    
+    expect(assignStep.callStack[0].variables.x.value).toBe(5);
+  });
 
-function logResult(testName, passed, reason) {
-  if (passed) {
-    console.log(`PASS: ${testName} - ${reason}`);
-    passCount++;
-  } else {
-    console.log(`FAIL: ${testName} - ${reason}`);
-    failCount++;
-  }
-}
-
-// Test 1 - Variable assignment
-try {
-  const code1 = 'var x = 5;';
-  const steps1 = runInterpreter(code1);
-
-  if (steps1.length < 3) throw new Error('steps array has fewer than 3 steps');
-  
-  const hasGlobalCtxCreate = steps1.some(s => s.type === 'GLOBAL_CTX_CREATE');
-  if (!hasGlobalCtxCreate) throw new Error('missing GLOBAL_CTX_CREATE step');
-
-  const hasVarHoist = steps1.some(s => s.type === 'VAR_HOIST');
-  if (!hasVarHoist) throw new Error('missing VAR_HOIST step');
-
-  const assignStep = steps1.find(s => s.type === 'ASSIGN');
-  if (!assignStep) throw new Error('missing ASSIGN step');
-
-  if (assignStep.callStack[0].variables.x.value !== 5) {
-    throw new Error('ASSIGN step callStack[0].variables.x.value is not 5');
-  }
-
-  logResult('Test 1 - Variable assignment', true, 'All expectations met');
-} catch (e) {
-  logResult('Test 1 - Variable assignment', false, e.message);
-}
-
-// Test 2 - Function call
-try {
-  const code2 = `
+  it('handles function calls', () => {
+    const code = `
 function greet(name) {
   return 'hello ' + name;
 }
 var result = greet('world');
 `;
-  const steps2 = runInterpreter(code2);
+    const steps = runInterpreter(code);
+    
+    const hasFnHoist = steps.some(s => s.type === 'FN_HOIST');
+    expect(hasFnHoist).toBe(true);
+    
+    const hasFnCall = steps.some(s => s.type === 'FN_CALL');
+    expect(hasFnCall).toBe(true);
+    
+    const hasFnReturn = steps.some(s => s.type === 'FN_RETURN');
+    expect(hasFnReturn).toBe(true);
+    
+    const assignSteps = steps.filter(s => s.type === 'ASSIGN');
+    expect(assignSteps.length).toBeGreaterThan(0);
+    
+    const finalAssignStep = assignSteps[assignSteps.length - 1];
+    expect(finalAssignStep.callStack[0].variables.result.value).toBe('hello world');
+  });
 
-  const hasFnHoist = steps2.some(s => s.type === 'FN_HOIST');
-  if (!hasFnHoist) throw new Error('missing FN_HOIST step');
-
-  const hasFnCall = steps2.some(s => s.type === 'FN_CALL');
-  if (!hasFnCall) throw new Error('missing FN_CALL step');
-
-  const hasFnReturn = steps2.some(s => s.type === 'FN_RETURN');
-  if (!hasFnReturn) throw new Error('missing FN_RETURN step');
-
-  // find the final ASSIGN step
-  const assignSteps = steps2.filter(s => s.type === 'ASSIGN');
-  if (assignSteps.length === 0) throw new Error('missing ASSIGN step');
-  const finalAssignStep = assignSteps[assignSteps.length - 1];
-
-  if (finalAssignStep.callStack[0].variables.result.value !== 'hello world') {
-    throw new Error("final ASSIGN step callStack[0].variables.result.value is not 'hello world'");
-  }
-
-  logResult('Test 2 - Function call', true, 'All expectations met');
-} catch (e) {
-  logResult('Test 2 - Function call', false, e.message);
-}
-
-// Test 3 - Closure
-try {
-  const code3 = `
+  it('handles closures', () => {
+    const code = `
 function makeAdder(x) {
   return function(y) { return x + y; };
 }
 var add5 = makeAdder(5);
 var result = add5(2);
 `;
-  const steps3 = runInterpreter(code3);
-
-  if (steps3.length <= 5) throw new Error('steps array length is not > 5');
-
-  const hasClosureCapture = steps3.some(s => s.type === 'CLOSURE_CAPTURE');
-  if (!hasClosureCapture) throw new Error('missing CLOSURE_CAPTURE step');
-
-  // check result variable in global frame
-  const finalStep = steps3[steps3.length - 1];
-  const globalFrame = finalStep.callStack.find(f => f.type === 'global');
-  if (!globalFrame) throw new Error('missing global frame in final step');
-  if (globalFrame.variables.result.value !== 7) {
-    throw new Error('result variable in global frame is not 7');
-  }
-
-  logResult('Test 3 - Closure', true, 'All expectations met');
-} catch (e) {
-  logResult('Test 3 - Closure', false, e.message);
-}
-
-console.log(`\nTotal: ${passCount} passed, ${failCount} failed.`);
-process.exit(failCount > 0 ? 1 : 0);
+    const steps = runInterpreter(code);
+    
+    expect(steps.length).toBeGreaterThan(5);
+    
+    const hasClosureCapture = steps.some(s => s.type === 'CLOSURE_CAPTURE');
+    expect(hasClosureCapture).toBe(true);
+    
+    const finalStep = steps[steps.length - 1];
+    const globalFrame = finalStep.callStack.find(f => f.type === 'global');
+    
+    expect(globalFrame).toBeDefined();
+    expect(globalFrame.variables.result.value).toBe(7);
+  });
+});

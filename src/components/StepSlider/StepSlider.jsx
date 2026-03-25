@@ -21,7 +21,7 @@ export default function StepSlider() {
       return;
     }
 
-    if (!isRunning) return;
+    if (!isRunning || steps.length === 0) return;
 
     switch (e.code) {
       case 'ArrowLeft':
@@ -56,7 +56,7 @@ export default function StepSlider() {
     };
   }, [handleKeyDown]);
 
-  if (!isRunning || steps.length === 0) return null;
+  const isEmpty = !isRunning || steps.length === 0;
 
   const handleSliderChange = (e) => {
     dispatch({ type: 'SET_INDEX', payload: parseInt(e.target.value, 10) });
@@ -70,7 +70,7 @@ export default function StepSlider() {
     <div className={styles.container}>
       <div className={styles.topRow}>
         <div className={styles.stepCounter}>
-          Step {currentIndex + 1} of {steps.length}
+          {isEmpty ? 'Ready' : `Step ${currentIndex + 1} of ${steps.length}`}
         </div>
         
         <div className={styles.controls}>
@@ -78,13 +78,14 @@ export default function StepSlider() {
             className={styles.button} 
             onClick={() => dispatch({ type: 'RESET' })}
             title="Reset"
+            disabled={isEmpty}
           >
             |&lt;
           </button>
           <button 
             className={styles.button} 
             onClick={() => dispatch({ type: 'STEP_BACKWARD' })}
-            disabled={currentIndex === 0}
+            disabled={isEmpty || currentIndex === 0}
             title="Step Backward"
           >
             &lt;
@@ -93,13 +94,14 @@ export default function StepSlider() {
             className={`${styles.button} ${styles.playButton}`} 
             onClick={() => dispatch({ type: 'SET_PLAYING', payload: !isPlaying })}
             title={isPlaying ? "Pause" : "Play"}
+            disabled={isEmpty}
           >
             {isPlaying ? '⏸' : '▶'}
           </button>
           <button 
             className={styles.button} 
             onClick={() => dispatch({ type: 'STEP_FORWARD' })}
-            disabled={currentIndex >= steps.length - 1}
+            disabled={isEmpty || currentIndex >= steps.length - 1}
             title="Step Forward"
           >
             &gt;
@@ -122,10 +124,11 @@ export default function StepSlider() {
       <input
         type="range"
         min="0"
-        max={steps.length - 1}
+        max={Math.max(0, steps.length - 1)}
         value={currentIndex}
         onChange={handleSliderChange}
         className={styles.slider}
+        disabled={isEmpty}
         style={{
           background: `linear-gradient(to right, var(--orange) ${progressPercentage}%, var(--border) ${progressPercentage}%)`
         }}

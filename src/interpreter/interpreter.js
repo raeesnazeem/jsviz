@@ -1,5 +1,28 @@
-import StepType from './stepTypes.js';
-import { parseCode } from './parser.js';
+import { parseCode } from './parser';
+import StepType from './stepTypes';
+
+// Deep clone helper for state immutability
+function deepClone(obj) {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    const arrCopy = [];
+    for (let i = 0; i < obj.length; i++) {
+      arrCopy[i] = deepClone(obj[i]);
+    }
+    return arrCopy;
+  }
+
+  const objCopy = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      objCopy[key] = deepClone(obj[key]);
+    }
+  }
+  return objCopy;
+}
 
 function createFrame(id, name, type, outerRef) {
   return {
@@ -8,67 +31,76 @@ function createFrame(id, name, type, outerRef) {
     type,
     outerRef,
     variables: {},
-    thisBinding: undefined,
-    returnValue: null,
-    isActive: false
+    isActive: false,
+    returnValue: undefined,
+    currentLine: null,
+    hasReturned: false
   };
 }
 
-function createVariable(value, kind, hoisted, initialized) {
+function createVariable(value, type, hoisted, initialized) {
   return {
     value,
-    kind,
+    type,
     hoisted,
     initialized,
     isClosure: false
   };
 }
 
-function lookupVariable(name, frameId, frames) {
+function lookupVariable(name, frameId, allFrames) {
   let currentId = frameId;
-  while (currentId !== null && currentId !== undefined) {
-    const frame = frames.find(f => f.id === currentId);
+  while (currentId !== null) {
+    const frame = allFrames.find(f => f.id === currentId);
     if (!frame) break;
     
     if (name in frame.variables) {
+      if (frameId !== currentId) {
+        frame.variables[name].isClosure = true;
+      }
       return frame.variables[name];
     }
     currentId = frame.outerRef;
   }
-  return undefined;
+  return null;
 }
 
-function setVariable(name, value, frameId, frames) {
+function setVariable(name, value, frameId, allFrames) {
   let currentId = frameId;
-  while (currentId !== null && currentId !== undefined) {
-    const frame = frames.find(f => f.id === currentId);
+  while (currentId !== null) {
+    const frame = allFrames.find(f => f.id === currentId);
     if (!frame) break;
     
     if (name in frame.variables) {
       frame.variables[name].value = value;
-      return;
+      frame.variables[name].initialized = true;
+      return true;
     }
     currentId = frame.outerRef;
   }
   
-  const initialFrame = frames.find(f => f.id === frameId);
-  if (initialFrame) {
-    initialFrame.variables[name] = createVariable(value, 'var', false, true);
+  // If not found in any scope, create in global scope (non-strict mode behavior)
+  const globalFrame = allFrames.find(f => f.type === 'global');
+  if (globalFrame) {
+    globalFrame.variables[name] = createVariable(value, 'var', false, true);
+    return true;
   }
-}
-
-function cloneState(callStack, webApis, callbackQueue, consoleOutput) {
-  return {
-    callStack: JSON.parse(JSON.stringify(callStack)),
-    webApis: JSON.parse(JSON.stringify(webApis)),
-    callbackQueue: JSON.parse(JSON.stringify(callbackQueue)),
-    consoleOutput: JSON.parse(JSON.stringify(consoleOutput))
-  };
+  
+  return false;
 }
 
 function makeStep(id, type, currentLine, nextLine, callStack, webApis, callbackQueue, consoleOutput, arrows, description) {
-  const cloned = cloneState(callStack, webApis, callbackQueue, consoleOutput);
-  
+  const cloned = deepClone({
+    callStack,
+    webApis,
+    callbackQueue,
+    consoleOutput
+  });
+
+  if (currentLine !== null && cloned.callStack.length > 0) {
+    cloned.callStack[cloned.callStack.length - 1].currentLine = currentLine;
+  }
+
   return {
     id,
     type,
@@ -91,7 +123,7 @@ export function runInterpreter(sourceCode) {
   return interpretAST(ast, sourceCode);
 }
 
-export function interpretAST(ast, source) {
+export function interpretAST(ast) {
   const steps = [];
   let stepId = 0;
   const callStack = [];
@@ -99,7 +131,6 @@ export function interpretAST(ast, source) {
   const webApis = [];
   const callbackQueue = [];
   const consoleOutput = [];
-  let timeoutId = 0;
 
   function pushStep(type, line, nextLine, arrows, desc) {
     steps.push(makeStep(
@@ -122,7 +153,7 @@ export function interpretAST(ast, source) {
   callStack.push(globalFrame);
   allFrames.push(globalFrame);
   pushStep(StepType.GLOBAL_CTX_CREATE, null, null, [], 'Creating global execution context');
-
+  
   // Step 2 - Hoisting pass over the top-level body
   if (ast && ast.body) {
     for (const node of ast.body) {
@@ -181,7 +212,20 @@ export function interpretAST(ast, source) {
       }
         
       case 'CallExpression': {
-        const callee = evalExpr(expr.callee, currentFrame);
+        const calleeNode = expr.callee;
+        
+        // Handle console.log
+        if (calleeNode.type === 'MemberExpression' && 
+            calleeNode.object.name === 'console' && 
+            calleeNode.property.name === 'log') {
+          const args = expr.arguments.map(arg => evalExpr(arg, currentFrame));
+          const logOutput = args.join(' ');
+          consoleOutput.push(logOutput);
+          pushStep(StepType.CONSOLE_LOG, expr.loc?.start?.line, null, [], `Logging to console: ${logOutput}`);
+          return undefined;
+        }
+
+        const callee = evalExpr(calleeNode, currentFrame);
         const args = expr.arguments.map(arg => evalExpr(arg, currentFrame));
         
         if (callee && callee.type === 'function') {
@@ -232,7 +276,7 @@ export function interpretAST(ast, source) {
     switch (node.type) {
       case 'VariableDeclaration':
         for (const decl of node.declarations) {
-          const initValue = evalExpr(decl.init, currentFrame); 
+          const initValue = evalExpr(decl.init, currentFrame);
           
           if (node.kind === 'var') {
             setVariable(decl.id.name, initValue, currentFrame.id, allFrames);
