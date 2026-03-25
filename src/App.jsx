@@ -1,6 +1,9 @@
 import React from 'react';
 import VisualizerProvider from './context/VisualizerContext';
 import CallStack from './components/CallStack/CallStack';
+import WebApis from './components/WebApis/WebApis';
+import CallbackQueue from './components/CallbackQueue/CallbackQueue';
+import EventLoop from './components/EventLoop/EventLoop';
 import Editor from './components/Editor/Editor';
 import './styles/global.css';
 
@@ -34,8 +37,30 @@ function App() {
           </div>
           
           {/* Right Column */}
-          <div style={{ width: 'var(--viz-w)', height: '100%', backgroundColor: 'var(--bg-panel)' }}>
-            <CallStack />
+          <div style={{ 
+            width: 'var(--viz-w)', 
+            height: '100%', 
+            display: 'grid',
+            gridTemplateRows: '1fr auto auto',
+            gridTemplateColumns: '1fr 1fr',
+            gridTemplateAreas: `
+              "callstack webapis"
+              "eventloop eventloop"
+              "queue queue"
+            `
+          }}>
+            <div style={{ gridArea: 'callstack', overflow: 'hidden' }}>
+              <CallStack />
+            </div>
+            <div style={{ gridArea: 'webapis', overflow: 'hidden', borderLeft: '1px solid var(--border)' }}>
+              <WebApis />
+            </div>
+            <div style={{ gridArea: 'eventloop', padding: '12px 0', borderTop: '1px solid var(--border)' }}>
+              <EventLoop />
+            </div>
+            <div style={{ gridArea: 'queue', borderTop: '1px solid var(--border)' }}>
+              <CallbackQueue />
+            </div>
           </div>
         </div>
       </div>
