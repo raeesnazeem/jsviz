@@ -36,6 +36,54 @@ app.use((req, res, next) => {
     next();
 });
 
+// --- CUSTOM RATE LIMITER ---
+// A simple sliding window rate limiter that won't conflict with Render's proxy
+const rateLimitWindowMs = 15 * 60 * 1000; // 15 minutes
+const maxRequestsPerWindow = 100;
+const ipRequestCounts = new Map();
+
+function customRateLimiter(req, res, next) {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const now = Date.now();
+    
+    if (!ipRequestCounts.has(ip)) {
+        ipRequestCounts.set(ip, []);
+    }
+    
+    const requests = ipRequestCounts.get(ip);
+    
+    // Filter out requests older than the window
+    const windowStart = now - rateLimitWindowMs;
+    const recentRequests = requests.filter(time => time > windowStart);
+    
+    if (recentRequests.length >= maxRequestsPerWindow) {
+        // Return a standard JSON response instead of abruptly dropping the connection
+        return res.status(429).json({
+            error: 'Too many requests',
+            message: 'You have exceeded the 100 requests per 15 minutes limit. Please try again later.'
+        });
+    }
+    
+    recentRequests.push(now);
+    ipRequestCounts.set(ip, recentRequests);
+    
+    // Optional: cleanup the map periodically to prevent memory leaks if many IPs connect
+    if (ipRequestCounts.size > 1000) {
+        for (const [key, reqs] of ipRequestCounts.entries()) {
+            const validReqs = reqs.filter(time => time > windowStart);
+            if (validReqs.length === 0) {
+                ipRequestCounts.delete(key);
+            } else {
+                ipRequestCounts.set(key, validReqs);
+            }
+        }
+    }
+    
+    next();
+}
+
+app.use('/api/', customRateLimiter);
+
 // --- ROUTES ---
 
 // Health Check
