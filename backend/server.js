@@ -14,8 +14,8 @@ app.use(cors({
   credentials: true
 }));
 
-// 2. Explicitly handle pre-flight across all routes
-app.options('*', cors());
+// 2. Fix for the PathError crash - use regex literal instead of string
+app.options(/(.*)/, cors());
 
 const dotenv = require('dotenv');
 dotenv.config();
