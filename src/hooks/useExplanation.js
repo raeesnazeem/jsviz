@@ -125,10 +125,10 @@ export function useExplanation() {
         if (err.name === 'AbortError') {
           // It was manually cancelled, do not write error states!
           console.log('AI fetch aborted for cache key:', cacheKey);
-        } else if (err.message.includes('Failed to fetch') && retryCount < 2) {
-          // Retry on connection reset / network errors (Render cold start)
+        } else if (err.message.includes('Failed to fetch') && retryCount < 3) {
+          // Retry on connection reset / network errors (Render cold start takes ~30-50s)
           console.log(`Retrying fetch (attempt ${retryCount + 1})...`);
-          const delay = (retryCount + 1) * 1500; // 1.5s, 3s
+          const delay = retryCount === 0 ? 5000 : retryCount === 1 ? 10000 : 15000; // 5s, 10s, 15s
           setTimeout(() => {
             if (isMounted) fetchExplanation(retryCount + 1);
           }, delay);
