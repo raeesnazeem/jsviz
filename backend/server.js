@@ -1,45 +1,26 @@
 const express = require('express');
 const cors = require('cors');
+const dotenv = require('dotenv');
+dotenv.config();
 
 const app = express();
 
-// 1. Define allowed origins clearly
-const allowedOrigins = [
-  'https://jsviz.raeescodes.xyz',
-  'https://raeescodes.xyz',
-  'https://www.raeescodes.xyz',
-  'https://jsviz.onrender.com'
-];
+// BULLETPROOF CORS - Allow all origins for seamless operation
+// This is the simplest and most reliable approach
+app.use(cors());
 
-// 2. Comprehensive CORS middleware
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      return callback(new Error('CORS Policy Error'), false);
-    }
-    return callback(null, true);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Accel-Buffering']
-}));
-
-// 3. MANUAL OPTIONS HANDLER (This fixes the "null" status in Firefox)
-app.options(/(.*)/, (req, res) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Accel-Buffering');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
+// Explicit CORS headers on EVERY response as backup
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Accel-Buffering');
+  
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
   }
-  res.sendStatus(204); // No content, just the handshake
+  next();
 });
-
-const dotenv = require('dotenv');
-dotenv.config();
 
 const Groq = require('groq-sdk');
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -118,13 +99,13 @@ app.post('/api/explain', async (req, res) => {
         // Decode Base64 encoded code from frontend
         const code = encodedCode ? Buffer.from(encodedCode, 'base64').toString('utf-8') : '';
 
-        // Ensure headers are set for SSE
+        // Ensure headers are set for SSE with CORS
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
-        // Disable Nginx/Proxy buffering
         res.setHeader('X-Accel-Buffering', 'no');
-        res.flushHeaders(); // Tell Express to send headers immediately
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.flushHeaders();
 
         let codeSnippet = '';
         if (code && currentLine) {
