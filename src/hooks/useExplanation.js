@@ -17,6 +17,14 @@ const activeControllers = new Map();
 // Determine the API base URL based on environment
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://jsviz.onrender.com';
 
+// Wake up the backend on first load (Render free tier cold start)
+let backendWarmedUp = false;
+function warmupBackend() {
+  if (backendWarmedUp) return;
+  backendWarmedUp = true;
+  fetch(`${API_BASE_URL}/api/health`, { method: 'GET' }).catch(() => {});
+}
+
 export function useExplanation() {
   const { currentStep, currentIndex, code } = useVisualizer();
   const [text, setText] = useState('');
@@ -51,10 +59,13 @@ export function useExplanation() {
     let isMounted = true;
     let accumulatedText = '';
 
-    const fetchExplanation = async () => {
+    const fetchExplanation = async (retryCount = 0) => {
       setLoading(true);
       setError(false);
-      setText('');
+      if (retryCount === 0) setText('');
+
+      // Warm up backend on first request
+      warmupBackend();
 
       try {
         const response = await fetch(`${API_BASE_URL}/api/explain`, {
@@ -114,6 +125,14 @@ export function useExplanation() {
         if (err.name === 'AbortError') {
           // It was manually cancelled, do not write error states!
           console.log('AI fetch aborted for cache key:', cacheKey);
+        } else if (err.message.includes('Failed to fetch') && retryCount < 2) {
+          // Retry on connection reset / network errors (Render cold start)
+          console.log(`Retrying fetch (attempt ${retryCount + 1})...`);
+          const delay = (retryCount + 1) * 1500; // 1.5s, 3s
+          setTimeout(() => {
+            if (isMounted) fetchExplanation(retryCount + 1);
+          }, delay);
+          return;
         } else {
           console.error('Explanation fetch error:', err);
           if (isMounted) {
