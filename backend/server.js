@@ -170,4 +170,15 @@ Explain exactly what is happening in simple terms right now.`
 // --- START SERVER ---
 app.listen(PORT, () => {
     console.log(`JSViz backend running on port ${PORT}`);
+    
+    // Self-ping to keep Render free tier warm (every 14 minutes)
+    // Render spins down after 15 min of inactivity
+    if (process.env.RENDER) {
+        const SELF_URL = process.env.RENDER_EXTERNAL_URL || 'https://jsviz.onrender.com';
+        setInterval(() => {
+            fetch(`${SELF_URL}/api/health`)
+                .then(() => console.log('Keep-alive ping sent'))
+                .catch(err => console.log('Keep-alive ping failed:', err.message));
+        }, 14 * 60 * 1000); // 14 minutes
+    }
 });
