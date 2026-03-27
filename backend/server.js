@@ -15,7 +15,8 @@ const PORT = process.env.PORT || 3001;
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
-  'https://jsviz.vercel.app' // Replace with your actual vercel URL if different
+  'https://jsviz.vercel.app', // Replace with your actual vercel URL if different
+  'https://jsviz.raeescodes.xyz'
 ];
 
 app.use(cors({
