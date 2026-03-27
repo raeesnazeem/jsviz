@@ -79,6 +79,11 @@ app.get('/api/health', (req, res) => {
 
 
 app.post('/api/explain', async (req, res) => {
+    // TEMPORARY: Simple JSON response to test if Render handles non-streaming
+    console.log('Explain endpoint hit!');
+    return res.json({ test: 'ok', message: 'Backend is reachable!' });
+    
+    /* ORIGINAL SSE CODE - COMMENTED OUT FOR TESTING
     try {
         const { stepDescription, code, currentLine } = req.body;
 
@@ -151,6 +156,7 @@ Explain exactly what is happening in simple terms right now.`
             res.end();
         }
     }
+    */
 });
 
 // --- START SERVER ---
