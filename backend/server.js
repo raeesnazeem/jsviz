@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const rateLimit = require('express-rate-limit');
 
 dotenv.config();
 
@@ -37,12 +36,6 @@ app.use((req, res, next) => {
     next();
 });
 
-const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100
-});
-app.use('/api/', apiLimiter);
-
 // --- ROUTES ---
 
 // Health Check
@@ -59,6 +52,8 @@ app.post('/api/explain', async (req, res) => {
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
+        // Disable Nginx/Proxy buffering
+        res.setHeader('X-Accel-Buffering', 'no');
         res.flushHeaders(); // Tell Express to send headers immediately
 
         let codeSnippet = '';
