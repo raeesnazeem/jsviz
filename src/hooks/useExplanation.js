@@ -15,7 +15,7 @@ const explanationCache = new Map();
 const activeControllers = new Map();
 
 // Determine the API base URL based on environment
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://jsviz.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 // Wake up the backend on first load (Render free tier cold start)
 let backendWarmedUp = false;
