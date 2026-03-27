@@ -73,7 +73,7 @@ export function useExplanation() {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to fetch explanation');
+          throw new Error(`Failed to fetch explanation: ${response.status}`);
         }
 
         const reader = response.body.getReader();
@@ -126,10 +126,14 @@ export function useExplanation() {
       }
     };
 
-    fetchExplanation();
+    // Debounce the fetch to avoid spamming the backend when scrubbing the slider
+    const debounceTimer = setTimeout(() => {
+      fetchExplanation();
+    }, 300);
 
     return () => {
       isMounted = false;
+      clearTimeout(debounceTimer);
       if (activeControllers.has(cacheKey)) {
         activeControllers.get(cacheKey).abort();
         activeControllers.delete(cacheKey);
