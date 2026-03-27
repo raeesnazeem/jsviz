@@ -15,6 +15,7 @@ app.use(cors({
   origin: [
     'https://jsviz.raeescodes.xyz',
     'https://raeescodes.xyz', 
+    'https://www.raeescodes.xyz', 
     'https://jsviz.onrender.com' // Keep this for UptimeRobot
   ],
   credentials: true
