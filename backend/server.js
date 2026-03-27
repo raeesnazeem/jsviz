@@ -11,15 +11,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // --- MIDDLEWARE ---
-app.use(cors({
-  origin: [
-    'https://jsviz.raeescodes.xyz',
-    'https://raeescodes.xyz', 
-    'https://www.raeescodes.xyz', 
-    'https://jsviz.onrender.com' // Keep this for UptimeRobot
-  ],
-  credentials: true
-}));
+// Wide open CORS for testing - will restrict after debugging
+app.use(cors());
 
 app.use(express.json());
 
