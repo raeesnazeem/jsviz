@@ -14,18 +14,31 @@ const PORT = process.env.PORT || 3001;
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
-  'https://jsviz.vercel.app', // Replace with your actual vercel URL if different
-  'https://jsviz.raeescodes.xyz'
+  'http://localhost:3000',
+  'https://jsviz.vercel.app',
+  'https://jsviz.raeescodes.xyz',
+  'https://www.jsviz.raeescodes.xyz',
+  'https://raeescodes.xyz',
+  'https://www.raeescodes.xyz'
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || origin.endsWith('.raeescodes.xyz')) {
       callback(null, true);
     } else {
+      console.log('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
-  }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
 
 app.use(express.json());
