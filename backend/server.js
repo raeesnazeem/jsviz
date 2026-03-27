@@ -1,19 +1,20 @@
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 
+const app = express();
+
+// CORS MUST be first - before anything else
+app.use(cors());
+
+const dotenv = require('dotenv');
 dotenv.config();
 
 const Groq = require('groq-sdk');
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-const app = express();
 const PORT = process.env.PORT || 3001;
 
 // --- MIDDLEWARE ---
-// Wide open CORS for testing - will restrict after debugging
-app.use(cors());
-
 app.use(express.json());
 
 // Debug Logger: This will print every request to your terminal
@@ -79,13 +80,11 @@ app.get('/api/health', (req, res) => {
 
 
 app.post('/api/explain', async (req, res) => {
-    // TEMPORARY: Simple JSON response to test if Render handles non-streaming
-    console.log('Explain endpoint hit!');
-    return res.json({ test: 'ok', message: 'Backend is reachable!' });
-    
-    /* ORIGINAL SSE CODE - COMMENTED OUT FOR TESTING
     try {
-        const { stepDescription, code, currentLine } = req.body;
+        const { stepDescription, code: encodedCode, currentLine } = req.body;
+        
+        // Decode Base64 encoded code from frontend
+        const code = encodedCode ? Buffer.from(encodedCode, 'base64').toString('utf-8') : '';
 
         // Ensure headers are set for SSE
         res.setHeader('Content-Type', 'text/event-stream');
@@ -156,7 +155,6 @@ Explain exactly what is happening in simple terms right now.`
             res.end();
         }
     }
-    */
 });
 
 // --- START SERVER ---

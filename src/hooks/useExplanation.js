@@ -78,7 +78,7 @@ export function useExplanation() {
             stepDescription: currentStep.description,
             currentLine: currentStep.currentLine,
             callStackDepth: currentStep.callStack ? currentStep.callStack.length : 0,
-            code: code
+            code: btoa(code || '') // Base64 encode to avoid proxy issues with raw JS code
           }),
           signal: controller.signal
         });
