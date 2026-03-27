@@ -3,19 +3,23 @@ const cors = require('cors');
 
 const app = express();
 
-// 1. Enable CORS for all routes (including OPTIONS)
+// 1. Bulletproof CORS configuration
 app.use(cors({
-  origin: [
-    'https://jsviz.raeescodes.xyz',
-    'https://raeescodes.xyz', 
-    'https://www.raeescodes.xyz',
-    'https://jsviz.onrender.com'
-  ],
-  credentials: true
+  origin: 'https://jsviz.raeescodes.xyz', // Lock it to your actual subdomain for now
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Accel-Buffering']
 }));
 
-// 2. Fix for the PathError crash - use regex literal instead of string
-app.options(/(.*)/, cors());
+// 2. The working regex for all paths in Node 22
+app.options(/(.*)/, cors()); 
+
+// 3. Specific header middleware to help Firefox
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://jsviz.raeescodes.xyz');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  next();
+});
 
 const dotenv = require('dotenv');
 dotenv.config();
