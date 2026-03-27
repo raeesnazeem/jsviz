@@ -3,22 +3,39 @@ const cors = require('cors');
 
 const app = express();
 
-// 1. Bulletproof CORS configuration
+// 1. Define allowed origins clearly
+const allowedOrigins = [
+  'https://jsviz.raeescodes.xyz',
+  'https://raeescodes.xyz',
+  'https://www.raeescodes.xyz',
+  'https://jsviz.onrender.com'
+];
+
+// 2. Comprehensive CORS middleware
 app.use(cors({
-  origin: 'https://jsviz.raeescodes.xyz', // Lock it to your actual subdomain for now
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      return callback(new Error('CORS Policy Error'), false);
+    }
+    return callback(null, true);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Accel-Buffering']
 }));
 
-// 2. The working regex for all paths in Node 22
-app.options(/(.*)/, cors()); 
-
-// 3. Specific header middleware to help Firefox
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'https://jsviz.raeescodes.xyz');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  next();
+// 3. MANUAL OPTIONS HANDLER (This fixes the "null" status in Firefox)
+app.options(/(.*)/, (req, res) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Accel-Buffering');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  res.sendStatus(204); // No content, just the handshake
 });
 
 const dotenv = require('dotenv');
