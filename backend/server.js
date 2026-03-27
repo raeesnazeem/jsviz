@@ -25,7 +25,7 @@ app.use(express.json());
 
 // Debug Logger: This will print every request to your terminal
 app.use((req, res, next) => {
-    console.log(`${req.method} ${req.url}`);
+    console.log(`${req.method} ${req.url} | Origin: ${req.headers.origin || 'none'}`);
     next();
 });
 
