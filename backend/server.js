@@ -3,34 +3,19 @@ const cors = require('cors');
 
 const app = express();
 
-// CORS MUST be first - before anything else
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, or uptime pinger)
-    if (!origin) return callback(null, true);
-    
-    const allowed = [
-      'https://jsviz.raeescodes.xyz',
-      'https://raeescodes.xyz',
-      'https://www.raeescodes.xyz'
-    ];
+// 1. Enable CORS for all routes (including OPTIONS)
+app.use(cors({
+  origin: [
+    'https://jsviz.raeescodes.xyz',
+    'https://raeescodes.xyz', 
+    'https://www.raeescodes.xyz',
+    'https://jsviz.onrender.com'
+  ],
+  credentials: true
+}));
 
-    if (allowed.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log("Blocked by CORS:", origin); // Check Render logs for this!
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Accel-Buffering']
-};
-
-app.use(cors(corsOptions));
-
-// Force handle OPTIONS requests (some hosts like Render need this)
-app.options('/(.*)', cors(corsOptions));
+// 2. Explicitly handle pre-flight across all routes
+app.options('*', cors());
 
 const dotenv = require('dotenv');
 dotenv.config();
