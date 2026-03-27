@@ -9,10 +9,25 @@ const Groq = require('groq-sdk');
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // --- MIDDLEWARE ---
-app.use(cors({ origin: 'http://localhost:5173' }));
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'https://jsviz.vercel.app' // Replace with your actual vercel URL if different
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+}));
+
 app.use(express.json());
 
 // Debug Logger: This will print every request to your terminal
@@ -37,7 +52,7 @@ app.get('/api/health', (req, res) => {
 
 app.post('/api/explain', async (req, res) => {
     try {
-        const { stepType, stepDescription, callStackDepth, code, currentLine } = req.body;
+        const { stepDescription, code, currentLine } = req.body;
 
         // Ensure headers are set for SSE
         res.setHeader('Content-Type', 'text/event-stream');

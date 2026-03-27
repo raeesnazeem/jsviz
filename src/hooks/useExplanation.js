@@ -14,6 +14,9 @@ function hashCode(str) {
 const explanationCache = new Map();
 const activeControllers = new Map();
 
+// Determine the API base URL based on environment
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://jsviz.onrender.com';
+
 export function useExplanation() {
   const { currentStep, currentIndex, code } = useVisualizer();
   const [text, setText] = useState('');
@@ -54,7 +57,7 @@ export function useExplanation() {
       setText('');
 
       try {
-        const response = await fetch('/api/explain', {
+        const response = await fetch(`${API_BASE_URL}/api/explain`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
