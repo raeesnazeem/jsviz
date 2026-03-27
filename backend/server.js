@@ -59,6 +59,7 @@ app.post('/api/explain', async (req, res) => {
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders(); // Tell Express to send headers immediately
 
         let codeSnippet = '';
         if (code && currentLine) {
